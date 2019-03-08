@@ -6,7 +6,7 @@ edition = "2018"
 description = "Double Ratchet key management for exchanging encrypted messages between two parties."
 repository = "https://github.com/sebastianv89/double-ratchet"
 readme = "README.md"
-keywords = ["ratchet", "double ratchet", "forward secrecy", "future secrecy"]
+keywords = ["double-ratchet", "forward-secrecy", "future-secrecy"]
 categories = ["Cryptography"]
 license = "BSD-3-Clause"
 
