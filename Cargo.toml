@@ -1,0 +1,36 @@
+[package]
+name = "double-ratchet"
+version = "0.1.0"
+authors = ["S.R. Verschoor <sebastian@zeroknowledge.me>"]
+edition = "2018"
+description = "Double Ratchet key management for exchanging encrypted messages between two parties."
+repository = "https://github.com/sebastianv89/double-ratchet"
+readme = "README.md"
+keywords = ["ratchet", "double ratchet", "forward secrecy", "future secrecy"]
+categories = ["Cryptography"]
+license = "BSD-3-Clause"
+
+[badges]
+travis-ci = {repository = "sebastianv89/double-ratchet"}
+
+[dependencies]
+rand_core = "0.4"
+
+[dev-dependencies]
+aes = "0.3"
+block-modes = "0.3"
+clear_on_drop = "0.2"
+generic-array = "0.12"
+hkdf = "0.7"
+hmac = "0.7"
+rand_os = "0.1"
+sha2 = "0.8"
+subtle = "2"
+x25519-dalek = "0.5"
+
+[features]
+# Allow doctests with mock objects
+# See: https://github.com/rust-lang/rust/issues/45599
+test = []
+
+
