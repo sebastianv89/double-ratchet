@@ -15,7 +15,8 @@ const MAX_SKIP: usize = 1000;
 /// Message Counter (as seen in the header)
 pub type Counter = u32;
 
-/// The `DoubleRatchet` can encrypt/decrypt messages while providing forward and future secrecy.
+/// The `DoubleRatchet` can encrypt/decrypt messages while providing forward secrecy and
+/// post-compromise security.
 ///
 /// The `DoubleRatchet` struct provides an implementation of the Double Ratchet Algorithm as
 /// defined in its [specification], including the unspecified symmetric initialization. After
@@ -35,22 +36,23 @@ pub type Counter = u32;
 ///
 /// Conditional on the correct implementation of the `CryptoProvider`, the `DoubleRatchet` provides
 /// confidentiality of the plaintext and authentication of both the ciphertext and associated data.
-/// It does not provid anonimity, as the headers have to be sent in plain text and are sufficient
+/// It does not provide anonymity, as the headers have to be sent in plain text and are sufficient
 /// for identifying the communicating parties. See `CryptoProvider` for further details on the
 /// required security properties.
 ///
 /// Forward secrecy (sometimes called the key-erasure property) preserves confidentiality of old
 /// messages in case of a device compromise. The `DoubleRatchet` provides forward secrecy by
 /// deriving a fresh key for every message: the sender deletes it immediately after encrypting and
-/// the receiver deletes it immediately after succesful decryption. Messages may arrive out of
+/// the receiver deletes it immediately after successful decryption. Messages may arrive out of
 /// order, in which case the receiver is able to derive and store the keys for the skipped messages
 /// without compromising the forward secrecy of other messages. See [secure deletion] for further
 /// discussion.
 ///
-/// Future secrecy (sometimes called the self-healing property) restores confidentiality of new
-/// messages in case of a past device compromise. The `DoubleRatchet` provides future secrecy by
-/// generating a fresh `KeyPair` for every reply that is being sent. See [recovery from compromise]
-/// for further discussion.
+/// Post-compromise security (sometimes called future secrecy or the self-healing property)
+/// restores confidentiality of new messages in case of a past device compromise. The
+/// `DoubleRatchet` provides future secrecy by generating a fresh `KeyPair` for every reply that is
+/// being sent. See [recovery from compromise] for further discussion and [post-compromise] for an
+/// in-depth analysis of the subject.
 ///
 /// # Examples
 ///
@@ -110,6 +112,7 @@ pub type Counter = u32;
 /// assert_eq!(&pt_bob[..], b"Hi Alice");
 /// ```
 ///
+/// [post-compromise]: https://eprint.iacr.org/2016/221
 /// [specification]: https://signal.org/docs/specifications/doubleratchet/#double-ratchet-1
 /// [secure deletion]: https://signal.org/docs/specifications/doubleratchet/#secure-deletion
 /// [recovery from compromise]: https://signal.org/docs/specifications/doubleratchet/#recovery-from-compromise
@@ -164,7 +167,7 @@ impl<CP: CryptoProvider> DoubleRatchet<CP> where {
     /// initialize this way the initialization is asymmetric in the sense that Alice requires Bob's
     /// public key.
     ///
-    /// Either Alice and Bob must supply the same extra symmetric key or both must supply none.
+    /// Either Alice and Bob must supply the same extra symmetric key or both must supply `None`.
     ///
     /// # Security considerations
     ///
@@ -198,7 +201,7 @@ impl<CP: CryptoProvider> DoubleRatchet<CP> where {
     /// Initialize "Bob": the receiver of the first message.
     ///
     /// This implements `RatchetInitBob` as defined in the [specification] when `initial_send =
-    /// None`: after intialization Bob must receive a message from Alice before he can send his
+    /// None`: after initialization Bob must receive a message from Alice before he can send his
     /// first message.
     ///
     /// Alternatively Bob provides an extra symmetric key: `initial_send = Some(key)`, so that both
@@ -206,7 +209,7 @@ impl<CP: CryptoProvider> DoubleRatchet<CP> where {
     /// initialize this way the initialization is asymmetric in the sense that Bob must provide his
     /// public key to Alice.
     ///
-    /// Either Alice and Bob must supply the same extra symmetric key or both must supply none.
+    /// Either Alice and Bob must supply the same extra symmetric key or both must supply `None`.
     ///
     /// # Security considerations
     ///
@@ -234,7 +237,7 @@ impl<CP: CryptoProvider> DoubleRatchet<CP> where {
         }
     }
 
-    /// Try to encrypt the plaintext. See `ratchet_encrypt` for details.
+    /// Try to encrypt the `plaintext`. See `ratchet_encrypt` for details.
     ///
     /// Fails with `EncryptUninit` when `self` is not yet initialized for encrypting.
     pub fn try_ratchet_encrypt<R: CryptoRng + RngCore>(
@@ -250,7 +253,7 @@ impl<CP: CryptoProvider> DoubleRatchet<CP> where {
         }
     }
 
-    /// Encrypt the plaintext, ratchet forward and return the (header, ciphertext) pair.
+    /// Encrypt the `plaintext`, ratchet forward and return the (header, ciphertext) pair.
     ///
     /// Implements `RatchetEncrypt` as defined in the [specification]. The header should be sent
     /// along the ciphertext in order for the recipient to be able to `ratchet_decrypt`. The
@@ -258,15 +261,15 @@ impl<CP: CryptoProvider> DoubleRatchet<CP> where {
     /// [AEAD](https://en.wikipedia.org/wiki/Authenticated_encryption) mode, which encrypts the
     /// `plaintext` and authenticates the `plaintext`, `associated_data` and the header.
     ///
-    /// The internal state of the DoubleRatchet is automatically updated so that the next
-    /// message key be sent with a fresh key.
+    /// The internal state of the `DoubleRatchet` is automatically updated so that the next message
+    /// key be sent with a fresh key.
     ///
     /// Note that `rng` is only used for updating the internal state and not for encrypting the
     /// data.
     ///
     /// # Panics
     ///
-    /// Panics if the DoubleRatchet is not initialized for sending yet. If this is a concern, use
+    /// Panics if `self` is not initialized for sending yet. If this is a concern, use
     /// `try_ratchet_encrypt` instead to avoid panics.
     ///
     /// [specification]: https://signal.org/docs/specifications/doubleratchet/#encrypting-messages
@@ -294,7 +297,7 @@ impl<CP: CryptoProvider> DoubleRatchet<CP> where {
     //
     // # Panics
     //
-    // Panics if encrypting is not yet intialized
+    // Panics if encrypting is not yet initialized
     fn ratchet_send_chain<R: CryptoRng + RngCore>(
         &mut self,
         rng: &mut R,
@@ -322,19 +325,20 @@ impl<CP: CryptoProvider> DoubleRatchet<CP> where {
         (h, mk)
     }
 
-    /// Verify-decrypt the ciphertext, update the state and return the plaintext.
+    /// Verify-decrypt the `ciphertext`, update `self` and return the plaintext.
     ///
     /// Implements `RatchetDecrypt` as defined in the [specification]. Decryption of the ciphertext
     /// includes verifying the authenticity of the `header`, `ciphertext` and `associated_data`
     /// (optional).
     ///
-    /// The internal state of the DoubleRatchet is automatically updated upon successful
-    /// decryption. This includes storing the `MessageKeys` of any skipped messages so these
-    /// messages can be decrypted if they arrive out of order.
+    /// `self` is automatically updated upon successful decryption. This includes ratcheting
+    /// forward the receiving key-chain and DH key-chain (if necessary) and storing the
+    /// `MessageKeys` of any skipped messages so these messages can be decrypted if they arrive out
+    /// of order.
     ///
-    /// Returns a `DecryptError` when the plaintext could not be decrypted: the internal state
-    /// remains unchanged in that case. There could be many reasons: inspect the returned
-    /// error-value for further details.
+    /// Returns a `DecryptError` when the plaintext could not be decrypted: `self` remains
+    /// unchanged in that case. There could be many reasons: inspect the returned error-value for
+    /// further details.
     ///
     /// [specification]: https://signal.org/docs/specifications/doubleratchet/#decrypting-messages-1
     pub fn ratchet_decrypt(
@@ -351,7 +355,7 @@ impl<CP: CryptoProvider> DoubleRatchet<CP> where {
     }
 
     // The actual decryption. Gets a (non-mutable) reference to self to ensure that the state is
-    // not changed. Upon succesful decryption the state must be updated. The minimum amount of work
+    // not changed. Upon successful decryption the state must be updated. The minimum amount of work
     // is done in order to retrieve the correct `MessageKey`: the returned `Diff` object contains
     // the result of that work to avoid doing the work again.
     fn try_decrypt(
@@ -466,16 +470,16 @@ impl<CP: CryptoProvider> DoubleRatchet<CP> where {
 /// The Header that should be sent alongside the ciphertext.
 ///
 /// The Header contains the information for the `DoubleRatchet` to find the correct `MessageKey` to
-/// decrypt the message. It is generated by encrypting a message.
+/// decrypt the message. It is generated by `ratchet_encrypt`
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Header<PublicKey> {
     /// The public half of the key-pair of the sender
     pub dh: PublicKey,
 
-    /// Counts the number of messages that have been sent in the current send ratchet
+    /// Counts the number of messages that have been sent in the current symmetric ratchet
     pub n: Counter,
 
-    /// Counts the number of messages that have been sent in the previous send ratchet
+    /// Counts the number of messages that have been sent in the previous symmetric ratchet
     pub pn: Counter,
 }
 
@@ -542,7 +546,7 @@ pub trait CryptoProvider {
 
     /// Authenticate-encrypt the plaintext and associated data.
     ///
-    /// This method MUST authenticate the associated data, as it contains the header bytes
+    /// This method MUST authenticate `associated_data`, because it contains the header bytes.
     fn encrypt(key: &Self::MessageKey, plaintext: &[u8], associated_data: &[u8]) -> Vec<u8>;
 
     /// Verify-decrypt the ciphertext and associated data.
@@ -638,7 +642,7 @@ impl<CP: CryptoProvider> KeyStore<CP> {
     }
 }
 
-// Required information for updating the state after succesful decryption
+// Required information for updating the state after successful decryption
 enum Diff<CP: CryptoProvider> {
     // Key was found amongst old key
     OldKey,
@@ -673,11 +677,11 @@ pub enum DecryptError {
 
     /// Could not find the message key required for decryption
     ///
-    /// Note that this implementation is not always able to detect when a `MessageKey` can't be
-    /// found: a `DecryptFailure` may be triggered instead.
+    /// Note that this implementation is not always able to detect when an old `MessageKey` can't
+    /// be found: a `DecryptFailure` may be triggered instead.
     MessageKeyNotFound,
 
-    /// Header message counter is too large
+    /// Header message counter is too large (either `n` or `pn`)
     SkipTooLarge,
 
     /// Storage of skipped message keys is full
