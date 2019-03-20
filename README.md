@@ -21,10 +21,8 @@ The Double Ratchet itself requires a public key crypto system that can perform
 derivation functions][kdf] (KDF). This crate aims to be agnostic towards the
 implementation of these functions: users of the crate implement the
 `CryptoProvider` trait and the `DoubleRatchet` struct should take care of the
-rest.[^1]
-
-[^1]: But contact me if you have a use-case where the interface is not
-  sufficient and I'll see if I can accommodate.
+rest (but contact me if you have a use-case where the interface is not
+sufficient and I'll see if I can accommodate).
 
 
 ## Examples
