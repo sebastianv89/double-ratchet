@@ -7,7 +7,7 @@ description = "Double Ratchet key management for exchanging encrypted messages b
 repository = "https://github.com/sebastianv89/double-ratchet"
 readme = "README.md"
 keywords = ["double-ratchet", "forward-secrecy", "future-secrecy"]
-categories = ["cryptography"]
+categories = ["cryptography", "no-std"]
 license = "BSD-3-Clause"
 
 [badges]
@@ -15,6 +15,7 @@ travis-ci = {repository = "sebastianv89/double-ratchet"}
 
 [dependencies]
 rand_core = "0.4"
+hashbrown = "0.1"
 
 [dev-dependencies]
 aes = "0.3"
@@ -29,6 +30,9 @@ subtle = "2"
 x25519-dalek = "0.5"
 
 [features]
+default = ["std"]
+nightly = []
+std = []
 # Allow doctests with mock objects
 # See: https://github.com/rust-lang/rust/issues/45599
 test = []

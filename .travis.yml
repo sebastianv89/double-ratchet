@@ -1,12 +1,25 @@
 language: rust
+
 rust:
   - stable
   - beta
   - nightly
+
+env:
+  # build should succeed without the test feature
+  - TEST_COMMAND=build FEATURES='' EXTRA_FLAGS=''
+  # test requires the test feature
+  - TEST_COMMAND=test FEATURES='test' EXTRA_FLAGS=''
+
 matrix:
-  allow_failures:
+  include:
+    # build without std on nightly only
     - rust: nightly
-  fast_finish: true
+      env: TEST_COMMAND=build FEATURES='nightly' EXTRA_FLAGS='--no-default-features'
+    # test without std on nightly only
+    - rust: nightly
+      env: TEST_COMMAND=test FEATURES='nightly test' EXTRA_FLAGS='--no-default-features'
+
 script:
-  - cargo test --verbose --features "test"
+  - cargo $TEST_COMMAND --verbose --features="$FEATURES" $EXTRA_FLAGS
 

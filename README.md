@@ -89,6 +89,11 @@ by adding the following to your `Cargo.toml`:
 double-ratchet = "0.1"
 ```
 
+The `std` feature is enabled by default. To remove the dependency on the
+standard library requires nightly because of dependency on the [`alloc`
+crate](https://doc.rust-lang.org/alloc/): compile with `--no-default-features
+--features "nightly"`.
+
 
 ## Documentation
 
@@ -103,6 +108,7 @@ and am open for suggestions for more features.
 - [ ] a Header Encrypted variant of the Double Ratchet
 - [ ] generalize the `KeyStore` to allow automatic deletion of very old keys
 - [ ] provide a way for saving/restoring a `DoubleRatchet` to storage
+- [ ] Provide a non-allocating interface for encryption/decryption
 
 
 [aead]: https://en.wikipedia.org/wiki/Authenticated_encryption#Authenticated_encryption_with_associated_data_(AEAD)

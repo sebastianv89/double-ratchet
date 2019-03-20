@@ -1,8 +1,14 @@
+use core::{cmp, fmt, hash::Hash};
+use hashbrown::HashMap;
 use rand_core::{CryptoRng, RngCore};
-use std::cmp;
+
+#[cfg(feature = "std")]
 use std::error::Error;
-use std::fmt;
-use std::{collections::HashMap, hash::Hash};
+
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+#[cfg(feature = "std")]
+use std::vec::Vec;
 
 // TODO: avoid heap allocations in encrypt/decrypt interfaces
 // TODO: make stuff like MAX_SKIP and MKS_CAPACITY dynamic
@@ -608,7 +614,7 @@ impl<CP: CryptoProvider> KeyStore<CP> {
 
     // Do `n` more MessageKeys fit in the KeyStore?
     fn can_store(&self, n: usize) -> bool {
-        let current: usize = self.0.values().map(|v| v.len()).sum();
+        let current: usize = self.0.values().map(HashMap::len).sum();
         current + n <= MKS_CAPACITY
     }
 
@@ -658,6 +664,7 @@ enum Diff<CP: CryptoProvider> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct EncryptUninit;
 
+#[cfg(feature = "std")]
 impl Error for EncryptUninit {}
 
 impl fmt::Display for EncryptUninit {
@@ -688,6 +695,7 @@ pub enum DecryptError {
     StorageFull,
 }
 
+#[cfg(feature = "std")]
 impl Error for DecryptError {}
 
 impl fmt::Display for DecryptError {
@@ -710,6 +718,7 @@ impl fmt::Display for DecryptError {
 #[allow(unused)]
 #[allow(missing_docs)]
 pub mod mock {
+    use super::*;
 
     pub type DoubleRatchet = super::DoubleRatchet<CryptoProvider>;
     pub struct CryptoProvider;
@@ -1121,7 +1130,7 @@ mod tests {
             let (h_a, ct_a) = alice.ratchet_encrypt(b"Hello Bob", ad_a, &mut rng);
             bob.ratchet_decrypt(&h_a, &ct_a, ad_a).unwrap();
             stored += MAX_SKIP;
-            dbg!(&bob.mkskipped.0.values().map(|hm| hm.len()).sum::<usize>());
+            &bob.mkskipped.0.values().map(|hm| hm.len()).sum::<usize>();
         }
         alice.ratchet_encrypt(b"Bob can't store this key anymore", ad_a, &mut rng);
         let (h_a, ct_a) = alice.ratchet_encrypt(b"Gotcha, Bob!", ad_a, &mut rng);
