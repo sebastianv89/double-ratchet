@@ -5,10 +5,7 @@ use rand_core::{CryptoRng, RngCore};
 #[cfg(feature = "std")]
 use std::error::Error;
 
-#[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
-#[cfg(feature = "std")]
-use std::vec::Vec;
 
 // TODO: avoid heap allocations in encrypt/decrypt interfaces
 // TODO: make stuff like MAX_SKIP and MKS_CAPACITY dynamic
