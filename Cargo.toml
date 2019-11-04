@@ -31,7 +31,6 @@ x25519-dalek = "0.5"
 
 [features]
 default = ["std"]
-nightly = []
 std = []
 # Allow doctests with mock objects
 # See: https://github.com/rust-lang/rust/issues/45599

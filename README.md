@@ -87,10 +87,7 @@ by adding the following to your `Cargo.toml`:
 double-ratchet = "0.1"
 ```
 
-The `std` feature is enabled by default. To remove the dependency on the
-standard library requires nightly because of dependency on the [`alloc`
-crate](https://doc.rust-lang.org/alloc/): compile with `--no-default-features
---features "nightly"`.
+The `std` feature is enabled by default. If you don't want to use `std`, compile with `--no-default-features`.
 
 
 ## Documentation
