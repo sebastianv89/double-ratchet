@@ -7,6 +7,7 @@ use std::error::Error;
 
 use alloc::vec::Vec;
 
+
 // TODO: avoid heap allocations in encrypt/decrypt interfaces
 // TODO: make stuff like MAX_SKIP and MKS_CAPACITY dynamic
 // TODO: HeaderEncrypted version
@@ -367,7 +368,7 @@ impl<CP: CryptoProvider> DoubleRatchet<CP> where {
         ct: &[u8],
         ad: &[u8],
     ) -> Result<(Diff<CP>, Vec<u8>), DecryptError> {
-        use Diff::*;
+        use Diff::{CurrentChain, NextChain, OldKey};
         if let Some(mk) = self.mkskipped.get(&h.dh, h.n) {
             Ok((OldKey, CP::decrypt(mk, ct, ad)?))
         } else if self.dhr.as_ref() == Some(&h.dh) {
@@ -421,7 +422,7 @@ impl<CP: CryptoProvider> DoubleRatchet<CP> where {
 
     // Update the internal state. Assumes that the validity of `h` has already been checked.
     fn update(&mut self, diff: Diff<CP>, h: &Header<CP::PublicKey>) {
-        use Diff::*;
+        use Diff::{CurrentChain, NextChain, OldKey};
         match diff {
             OldKey => self.mkskipped.remove(&h.dh, h.n),
             CurrentChain(ckr, mks) => {
@@ -697,7 +698,7 @@ impl Error for DecryptError {}
 
 impl fmt::Display for DecryptError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use DecryptError::*;
+        use DecryptError::{DecryptFailure, MessageKeyNotFound, SkipTooLarge, StorageFull};
         match self {
             DecryptFailure => write!(f, "Error during verify-decrypting"),
             MessageKeyNotFound => {
@@ -804,6 +805,7 @@ pub mod mock {
     impl super::CryptoRng for Rng {}
 }
 
+#[cfg(feature = "test")]
 #[cfg(test)]
 mod tests {
     use super::*;

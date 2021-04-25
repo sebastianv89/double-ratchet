@@ -25,15 +25,15 @@
 //! [`clear_on_drop`]: https://crates.io/crates/clear_on_drop
 //! [specification]: https://signal.org/docs/specifications/doubleratchet/#recommended-cryptographic-algorithms
 
-use aes::{block_cipher_trait::BlockCipher, Aes256};
+use aes::{cipher::BlockCipher, Aes256, NewBlockCipher};
 use block_modes::{block_padding::Pkcs7, BlockMode, Cbc};
 use clear_on_drop::clear::Clear;
 use double_ratchet::{self as dr, KeyPair as _};
-use generic_array::{typenum::U32, GenericArray};
+use generic_array::typenum::U32;
+use generic_array::GenericArray;
 use hkdf::Hkdf;
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, Mac, NewMac};
 use rand_core::{CryptoRng, RngCore};
-use rand_os::OsRng;
 use sha2::Sha256;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -60,7 +60,7 @@ impl dr::CryptoProvider for SignalCryptoProvider {
     fn kdf_rk(rk: &SymmetricKey, s: &SharedSecret) -> (SymmetricKey, SymmetricKey) {
         let salt = Some(rk.0.as_slice());
         let ikm = s.as_bytes();
-        let prk = Hkdf::<Sha256>::extract(salt, ikm);
+        let prk = Hkdf::<Sha256>::new(salt, ikm);
         let info = &b"WhisperRatchet"[..];
         let mut okm = [0; 64];
         prk.expand(&info, &mut okm).unwrap();
@@ -72,10 +72,10 @@ impl dr::CryptoProvider for SignalCryptoProvider {
     fn kdf_ck(ck: &SymmetricKey) -> (SymmetricKey, SymmetricKey) {
         let key = ck.0.as_slice();
         let mut mac = Hmac::<Sha256>::new_varkey(key).unwrap();
-        mac.input(&[0x01]);
-        let mk = mac.result_reset().code();
-        mac.input(&[0x02]);
-        let ck = mac.result().code();
+        mac.update(&[0x01]);
+        let mk = mac.finalize_reset().into_bytes();
+        mac.update(&[0x02]);
+        let ck = mac.finalize_reset().into_bytes();
         (SymmetricKey(ck), SymmetricKey(mk))
     }
 
@@ -84,8 +84,9 @@ impl dr::CryptoProvider for SignalCryptoProvider {
         let prk = Hkdf::<Sha256>::extract(None, ikm);
         let info = b"WhisperMessageKeys";
         let mut okm = [0; 80];
-        prk.expand(info, &mut okm).unwrap();
-        let ek = GenericArray::<u8, <Aes256 as BlockCipher>::KeySize>::from_slice(&okm[..32]);
+        prk.1.expand(info, &mut okm).unwrap();
+
+        let ek = GenericArray::<u8, <Aes256 as NewBlockCipher>::KeySize>::from_slice(&okm[..32]);
         let mk = GenericArray::<u8, <Hmac<Sha256> as Mac>::OutputSize>::from_slice(&okm[32..64]);
         let iv = GenericArray::<u8, <Aes256 as BlockCipher>::BlockSize>::from_slice(&okm[64..]);
 
@@ -93,9 +94,9 @@ impl dr::CryptoProvider for SignalCryptoProvider {
         let mut ct = cipher.encrypt_vec(pt);
 
         let mut mac = Hmac::<Sha256>::new_varkey(mk).unwrap();
-        mac.input(ad);
-        mac.input(&ct);
-        let tag = mac.result().code();
+        mac.update(ad);
+        mac.update(&ct);
+        let tag = mac.finalize_reset().into_bytes();
         ct.extend((&tag[..8]).into_iter());
 
         okm.clear();
@@ -107,17 +108,17 @@ impl dr::CryptoProvider for SignalCryptoProvider {
         let prk = Hkdf::<Sha256>::extract(None, ikm);
         let info = b"WhisperMessageKeys";
         let mut okm = [0; 80];
-        prk.expand(info, &mut okm).unwrap();
-        let dk = GenericArray::<u8, <Aes256 as BlockCipher>::KeySize>::from_slice(&okm[..32]);
+        prk.1.expand(info, &mut okm).unwrap();
+        let dk = GenericArray::<u8, <Aes256 as NewBlockCipher>::KeySize>::from_slice(&okm[..32]);
         let mk = GenericArray::<u8, <Hmac<Sha256> as Mac>::OutputSize>::from_slice(&okm[32..64]);
         let iv = GenericArray::<u8, <Aes256 as BlockCipher>::BlockSize>::from_slice(&okm[64..]);
 
         let ct_len = ct.len() - 8;
         let mut mac = Hmac::<Sha256>::new_varkey(mk).unwrap();
-        mac.input(ad);
-        mac.input(&ct[..ct_len]);
-        let tag = mac.result().code();
-        if bool::from(!(&tag.as_ref()[..8]).ct_eq(&ct[ct_len..])) {
+        mac.update(ad);
+        mac.update(&ct[..ct_len]);
+        let tag = mac.finalize_reset().into_bytes();
+        if bool::from(!(&tag[..8]).ct_eq(&ct[ct_len..])) {
             okm.clear();
             return Err(dr::DecryptError::DecryptFailure);
         }
@@ -203,7 +204,7 @@ impl dr::KeyPair for KeyPair {
 }
 
 #[derive(Default)]
-pub struct SymmetricKey(GenericArray<u8, U32>);
+pub struct SymmetricKey(generic_array::GenericArray<u8, generic_array::typenum::U32>);
 
 impl fmt::Debug for SymmetricKey {
     #[cfg(debug_assertions)]
@@ -225,7 +226,7 @@ impl Drop for SymmetricKey {
 
 #[test]
 fn signal_session() {
-    let mut rng = OsRng::new().unwrap();
+    let mut rng = rand_core::OsRng;
     let (ad_a, ad_b) = (b"A2B:SessionID=42", b"B2A:SessionID=42");
 
     // Copy some values (these are usually the outcome of an X3DH key exchange)
